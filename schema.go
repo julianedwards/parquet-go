@@ -681,7 +681,7 @@ func recursiveFix(col *Column, colPath ColumnPath, maxR, maxD uint16, alloc *all
 
 	col.maxR = maxR
 	col.maxD = maxD
-	col.path = append(colPath, col.name)
+	col.path = append(append(col.path, colPath...), col.name)
 	if col.data != nil {
 		col.data.reset(col.rep, col.maxR, col.maxD)
 		return
