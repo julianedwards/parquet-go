@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"time"
 
+	goparquet "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
 	"github.com/fraugster/parquet-go/parquetschema"
 	"github.com/pkg/errors"
@@ -61,7 +62,7 @@ func generateSchema(objType reflect.Type) ([]*parquetschema.ColumnDefinition, er
 func generateField(field reflect.StructField, fieldType reflect.Type, fieldName string) (column *parquetschema.ColumnDefinition, err error) {
 	defer func() {
 		if err == nil {
-			if err = parseParquetTag(field, column); err != nil {
+			if err = parseParquetTag(field, fieldType, column); err != nil {
 				column = nil
 			}
 		}
@@ -373,6 +374,22 @@ func generateField(field reflect.StructField, fieldType reflect.Type, fieldName 
 					RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 					LogicalType: &parquet.LogicalType{
 						TIMESTAMP: &parquet.TimestampType{
+							IsAdjustedToUTC: true,
+							Unit: &parquet.TimeUnit{
+								NANOS: parquet.NewNanoSeconds(),
+							},
+						},
+					},
+				},
+			}
+		case fieldType.ConvertibleTo(reflect.TypeOf(goparquet.Time{})):
+			column = &parquetschema.ColumnDefinition{
+				SchemaElement: &parquet.SchemaElement{
+					Type:           parquet.TypePtr(parquet.Type_INT64),
+					Name:           fieldName,
+					RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
+					LogicalType: &parquet.LogicalType{
+						TIME: &parquet.TimeType{
 							IsAdjustedToUTC: true,
 							Unit: &parquet.TimeUnit{
 								NANOS: parquet.NewNanoSeconds(),

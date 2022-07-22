@@ -4,25 +4,25 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
+	goparquet "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
 	"github.com/fraugster/parquet-go/parquetschema"
 	"github.com/pkg/errors"
 )
 
-func parseParquetTag(field reflect.StructField, column *parquetschema.ColumnDefinition) error {
+func parseParquetTag(field reflect.StructField, columnType reflect.Type, column *parquetschema.ColumnDefinition) error {
 	element := column.SchemaElement
-	tagFieldMap, err := createTagFieldMap(field, getParquetTagPrefix(column.SchemaElement.Name))
+	tagFieldMap, err := createTagFieldMap(field, getParquetTagPrefix(element.Name))
 	if err != nil {
 		return errors.Wrap(err, "creating struct tag field map")
 	}
 
-	if column.SchemaElement.Name == "" {
-		if name, ok := tagFieldMap["name"]; ok {
-			element.Name = name
-		} else {
-			column.SchemaElement.Name = strings.ToLower(field.Name)
-		}
+	if name, ok := tagFieldMap["name"]; ok {
+		element.Name = name
+	} else if element.Name == "" {
+		element.Name = strings.ToLower(field.Name)
 	}
 
 	for len(column.Children) > 0 {
@@ -38,11 +38,11 @@ func parseParquetTag(field reflect.StructField, column *parquetschema.ColumnDefi
 			return errors.Wrap(err, "getting the logical type from string")
 		}
 
-		if element.LogicalType.DATE != nil && *element.Type == parquet.Type_INT64 {
+		if element.LogicalType.DATE != nil {
 			// Ensure that the Parquet type is set to int32 for
 			// logical DATE fields since they may have been
-			// converted from an int64 or a time.Time struct field
-			// (which defaults to int64).
+			// converted from a time.Time struct field (which
+			// defaults to int64).
 			element.Type = parquet.TypePtr(parquet.Type_INT32)
 		}
 	}
@@ -79,12 +79,6 @@ func parseParquetTag(field reflect.StructField, column *parquetschema.ColumnDefi
 		if element.LogicalType.TIME != nil {
 			element.LogicalType.TIME.Unit = tu
 			if tu.MILLIS != nil {
-				if *element.Type == parquet.Type_INT64 {
-					// If the element type came from an
-					// int64 struct field it is safe to
-					// downcast.
-					element.Type = parquet.TypePtr(parquet.Type_INT32)
-				}
 				element.ConvertedType = parquet.ConvertedTypePtr(parquet.ConvertedType_TIME_MILLIS)
 			} else if tu.MICROS != nil {
 				element.ConvertedType = parquet.ConvertedTypePtr(parquet.ConvertedType_TIME_MICROS)
@@ -133,6 +127,10 @@ func parseParquetTag(field reflect.StructField, column *parquetschema.ColumnDefi
 		}
 
 		element.LogicalType.DECIMAL.Precision = int32(precision)
+	}
+
+	if logicalTypeString, ok := tagFieldMap["logicaltype"]; ok && !compatibleLogicalAndGoTypes(element.LogicalType, columnType) {
+		return errors.Errorf("incompatible Go type %s and Parquet logical type %s", columnType, logicalTypeString)
 	}
 
 	return nil
@@ -211,6 +209,46 @@ func logicalTypeFromString(s string) (*parquet.LogicalType, *parquet.ConvertedTy
 	}
 
 	return lt, ct, nil
+}
+
+func compatibleLogicalAndGoTypes(lt *parquet.LogicalType, gt reflect.Type) bool {
+	isByteSlice := func(gt reflect.Type) bool {
+		return gt.Kind() == reflect.Slice && gt.Elem().Kind() == reflect.Uint8
+	}
+	isByteArray := func(gt reflect.Type) bool {
+		return gt.Kind() == reflect.Array && gt.Elem().Kind() == reflect.Uint8
+	}
+	isGoTime := func(gt reflect.Type) bool {
+		return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(time.Time{}))
+	}
+	isGoParquetTime := func(gt reflect.Type) bool {
+		return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(goparquet.Time{}))
+	}
+
+	if gt.Kind() == reflect.Ptr {
+		gt = gt.Elem()
+	}
+
+	if lt.IsSetSTRING() || lt.IsSetENUM() || lt.IsSetJSON() || lt.IsSetBSON() {
+		return gt.Kind() == reflect.String || isByteSlice(gt)
+	}
+	if lt.IsSetDECIMAL() {
+		return gt.Kind() == reflect.Int32 || gt.Kind() == reflect.Int64 || isByteSlice(gt) || isByteArray(gt)
+	}
+	if lt.IsSetDATE() {
+		return gt.Kind() == reflect.Int32 || isGoTime(gt)
+	}
+	if lt.IsSetTIME() {
+		return (gt.Kind() == reflect.Int32 && lt.TIME.Unit.MILLIS != nil) || (gt.Kind() == reflect.Int64 && lt.TIME.Unit.MILLIS == nil) || isGoParquetTime(gt)
+	}
+	if lt.IsSetTIMESTAMP() {
+		return gt.Kind() == reflect.Int64 || isGoTime(gt)
+	}
+	if lt.IsSetUUID() {
+		return isByteArray(gt) && gt.Len() == 16
+	}
+
+	return false
 }
 
 func timeUnitFromString(s string) (*parquet.TimeUnit, error) {
