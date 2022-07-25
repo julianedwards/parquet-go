@@ -154,14 +154,14 @@ func (um *reflectUnmarshaller) fillTimeValue(elem *parquet.SchemaElement, value 
 		return err
 	}
 
-	var t Time
+	var t goparquet.Time
 	switch {
 	case elem.GetLogicalType().TIME.Unit.IsSetNANOS():
-		t = TimeFromNanoseconds(i)
+		t = goparquet.TimeFromNanoseconds(i)
 	case elem.GetLogicalType().TIME.Unit.IsSetMICROS():
-		t = TimeFromMicroseconds(i)
+		t = goparquet.TimeFromMicroseconds(i)
 	case elem.GetLogicalType().TIME.Unit.IsSetMILLIS():
-		t = TimeFromMilliseconds(int32(i))
+		t = goparquet.TimeFromMilliseconds(int32(i))
 	default:
 		return errors.New("invalid TIME unit")
 	}
@@ -221,7 +221,7 @@ func (um *reflectUnmarshaller) fillValue(value reflect.Value, data interfaces.Un
 		return nil
 	}
 
-	if value.Type().ConvertibleTo(reflect.TypeOf(Time{})) {
+	if value.Type().ConvertibleTo(reflect.TypeOf(goparquet.Time{})) {
 		if elem := schemaDef.SchemaElement(); elem.LogicalType != nil && elem.GetLogicalType().IsSetTIME() {
 			return um.fillTimeValue(elem, value, data)
 		}
