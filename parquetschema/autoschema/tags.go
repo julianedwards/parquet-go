@@ -32,6 +32,13 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		return nil
 	}
 
+	if typeString, ok := tagFieldMap["type"]; ok {
+		element.Type, err = typeFromString(typeString)
+		if err != nil {
+			return errors.Wrap(err, "getting type from string")
+		}
+	}
+
 	if logicalTypeString, ok := tagFieldMap["logicaltype"]; ok {
 		element.LogicalType, element.ConvertedType, err = logicalTypeFromString(logicalTypeString)
 		if err != nil {
@@ -39,7 +46,7 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		}
 
 		if element.LogicalType.DATE != nil {
-			// Ensure that the Parquet type is set to int32 for
+			// Ensure that the Parquet type is set to INT32 for
 			// logical DATE fields since they may have been
 			// converted from a time.Time struct field (which
 			// defaults to int64).
@@ -129,7 +136,13 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		element.LogicalType.DECIMAL.Precision = int32(precision)
 	}
 
-	if logicalTypeString, ok := tagFieldMap["logicaltype"]; ok && !compatibleLogicalAndGoTypes(element.LogicalType, columnType) {
+	// Check type compatibility at the end since there may have been some
+	// additional logical after setting the Parquet type and Parquet
+	// logical type that affects validity (e.g. time unit specification).
+	if typeString, ok := tagFieldMap["type"]; ok && !isTypeCompatible(element.Type, columnType) {
+		return errors.Errorf("incompatible Go type %s and Parquet type %s", columnType, typeString)
+	}
+	if logicalTypeString, ok := tagFieldMap["logicaltype"]; ok && !isLogicalTypeCompatible(element.LogicalType, columnType) {
 		return errors.Errorf("incompatible Go type %s and Parquet logical type %s", columnType, logicalTypeString)
 	}
 
@@ -175,6 +188,18 @@ func createTagFieldMap(field reflect.StructField, prefix string) (map[string]str
 	return tagFieldMap, nil
 }
 
+func typeFromString(s string) (*parquet.Type, error) {
+	var t parquet.Type
+	switch s {
+	case parquet.Type_INT96.String():
+		t = parquet.Type_INT96
+	default:
+		return nil, errors.Errorf("unsupported type '%s' specified", s)
+	}
+
+	return parquet.TypePtr(t), nil
+}
+
 func logicalTypeFromString(s string) (*parquet.LogicalType, *parquet.ConvertedType, error) {
 	var ct *parquet.ConvertedType
 	lt := parquet.NewLogicalType()
@@ -211,20 +236,36 @@ func logicalTypeFromString(s string) (*parquet.LogicalType, *parquet.ConvertedTy
 	return lt, ct, nil
 }
 
-func compatibleLogicalAndGoTypes(lt *parquet.LogicalType, gt reflect.Type) bool {
-	isByteSlice := func(gt reflect.Type) bool {
-		return gt.Kind() == reflect.Slice && gt.Elem().Kind() == reflect.Uint8
-	}
-	isByteArray := func(gt reflect.Type) bool {
-		return gt.Kind() == reflect.Array && gt.Elem().Kind() == reflect.Uint8
-	}
-	isGoTime := func(gt reflect.Type) bool {
-		return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(time.Time{}))
-	}
-	isGoParquetTime := func(gt reflect.Type) bool {
-		return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(goparquet.Time{}))
+func timeUnitFromString(s string) (*parquet.TimeUnit, error) {
+	tu := parquet.NewTimeUnit()
+	switch s {
+	case "MILLIS":
+		tu.MILLIS = parquet.NewMilliSeconds()
+	case "MICROS":
+		tu.MICROS = parquet.NewMicroSeconds()
+	case "NANOS", "":
+		tu.NANOS = parquet.NewNanoSeconds()
+	default:
+		return nil, errors.Errorf("unsupported time unit '%s' specified", s)
 	}
 
+	return tu, nil
+}
+
+func isTypeCompatible(pt *parquet.Type, gt reflect.Type) bool {
+	if gt.Kind() == reflect.Ptr {
+		gt = gt.Elem()
+	}
+
+	switch *pt {
+	case parquet.Type_INT96:
+		return (isByteArray(gt) && gt.Len() == 12)
+	default:
+		return true
+	}
+}
+
+func isLogicalTypeCompatible(lt *parquet.LogicalType, gt reflect.Type) bool {
 	if gt.Kind() == reflect.Ptr {
 		gt = gt.Elem()
 	}
@@ -251,18 +292,18 @@ func compatibleLogicalAndGoTypes(lt *parquet.LogicalType, gt reflect.Type) bool 
 	return false
 }
 
-func timeUnitFromString(s string) (*parquet.TimeUnit, error) {
-	tu := parquet.NewTimeUnit()
-	switch s {
-	case "MILLIS":
-		tu.MILLIS = parquet.NewMilliSeconds()
-	case "MICROS":
-		tu.MICROS = parquet.NewMicroSeconds()
-	case "NANOS", "":
-		tu.NANOS = parquet.NewNanoSeconds()
-	default:
-		return nil, errors.Errorf("unsupported time unit '%s' specified", s)
-	}
+func isByteSlice(gt reflect.Type) bool {
+	return gt.Kind() == reflect.Slice && gt.Elem().Kind() == reflect.Uint8
+}
 
-	return tu, nil
+func isByteArray(gt reflect.Type) bool {
+	return gt.Kind() == reflect.Array && gt.Elem().Kind() == reflect.Uint8
+}
+
+func isGoTime(gt reflect.Type) bool {
+	return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(time.Time{}))
+}
+
+func isGoParquetTime(gt reflect.Type) bool {
+	return gt.Kind() == reflect.Struct && gt.ConvertibleTo(reflect.TypeOf(goparquet.Time{}))
 }
