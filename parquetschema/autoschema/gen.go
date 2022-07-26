@@ -62,7 +62,7 @@ func generateSchema(objType reflect.Type) ([]*parquetschema.ColumnDefinition, er
 func generateField(field reflect.StructField, fieldType reflect.Type, fieldName string) (column *parquetschema.ColumnDefinition, err error) {
 	defer func() {
 		if err == nil {
-			if err = parseParquetTag(field, fieldType, column); err != nil {
+			if err = errors.Wrapf(parseParquetTag(field, fieldType, column), "parsing Parquet struct tag for field '%s'", field.Name); err != nil {
 				column = nil
 			}
 		}

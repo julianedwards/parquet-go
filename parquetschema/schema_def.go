@@ -189,7 +189,7 @@ func printCols(w io.Writer, cols []*ColumnDefinition, indent int) {
 			typ := getSchemaType(elem)
 			fmt.Fprintf(w, "%s %s", typ, elem.GetName())
 			if elem.LogicalType != nil {
-				fmt.Fprintf(w, " (%s)", getSchemaLogicalType(elem.GetLogicalType()))
+				fmt.Fprintf(w, " (%s)", GetSchemaLogicalType(elem.GetLogicalType()))
 			} else if elem.ConvertedType != nil {
 				fmt.Fprintf(w, " (%s)", elem.GetConvertedType().String())
 			}
@@ -259,7 +259,8 @@ func getTimeLogicalType(t *parquet.LogicalType) string {
 	return fmt.Sprintf("TIME(%s, %t)", unit, t.TIME.IsAdjustedToUTC)
 }
 
-func getSchemaLogicalType(t *parquet.LogicalType) string {
+// GetSchemaLogicalType returns a string representing the Parquet logical type.
+func GetSchemaLogicalType(t *parquet.LogicalType) string {
 	switch {
 	case t.IsSetSTRING():
 		return "STRING"
