@@ -67,12 +67,10 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		}
 	}
 
-	if isAdjustedToUTCString, ok := tagFieldMap[structTagIsAdjustedToUTC]; ok {
-		var isAdjustedToUTC bool
-		if strings.ToLower(isAdjustedToUTCString) == "true" {
-			isAdjustedToUTC = true
-		} else if strings.ToLower(isAdjustedToUTCString) != "false" {
-			return errors.Errorf("converting the specified is adjusted to UTC value '%s' to bool", isAdjustedToUTCString)
+	if isAdjustedToUTCString, ok := tagFieldMap[structTagIsAdjustedToUTC]; ok || (element.LogicalType != nil && (element.LogicalType.TIME != nil || element.LogicalType.TIMESTAMP != nil)) {
+		isAdjustedToUTC, err := isAdjustedToUTCFromString(isAdjustedToUTCString)
+		if err != nil {
+			return errors.Wrap(err, "getting is adjusted to UTC from string")
 		}
 		if element.LogicalType == nil {
 			return errors.New("must specify a logical type when specifying is adjusted to UTC")
@@ -247,6 +245,17 @@ func logicalTypeFromString(s string) (*parquet.LogicalType, *parquet.ConvertedTy
 	}
 
 	return lt, ct, nil
+}
+
+func isAdjustedToUTCFromString(s string) (bool, error) {
+	switch strings.ToLower(s) {
+	case "true", "":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, errors.Errorf("converting the specified is adjusted to UTC value '%s' to bool", s)
+	}
 }
 
 func timeUnitFromString(s string) (*parquet.TimeUnit, error) {

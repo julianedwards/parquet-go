@@ -233,11 +233,11 @@ tags (see below).
 | uint{,8,16,32,64} | INT{64,32,32,32,64}     | INTEGER({32,8,16,32,64}, false) |
 | string, []byte    | BYTE\_ARRAY             | STRING |
 | [N]byte           | FIXED\_LEN\_BYTE\_ARRAY |
+| time.Time         | INT64                   | TIMESTAMP(NANOS, true)
+| goparquet.Time    | INT64                   | TIME(NANOS, true)
 | map               | group                   | MAP |
 | slice, array      | group                   | LIST |
 | struct            | group                   |
-| time.Time         | int64                   | TIMESTAMP(NANOS, true)
-| goparquet.Time    | int64                   | TIME(NANOS, true)
 
 Pointers are automatically mapped to optional fields. All other Go types are
 not supported, including funcs, interfaces, unsafe pointers, unsigned int
@@ -256,9 +256,9 @@ based on a field's logical type.
 | --------------- | ------ | -------------------------------------------------------------------------------- | ----- |
 | name            | string | ANY                                                                              | Defaults to the lower-case struct field name. |
 | type            | string | `INT96`                                                                          | Unless using a [12]byte field for INT96, this does not ever need to be specified. |
-| logicaltype     | string | `STRING`, `ENUM`, `DECIMAL`, `DATE`, `TIME`, `TIMESTAMP`, `JSON`, `BSON`, `UUID` | Maps and non-byte slices and arrays are always always mapped to MAP and LIST logical types, respectively. |
+| logicaltype     | string | `STRING`, `ENUM`, `DECIMAL`, `DATE`, `TIME`, `TIMESTAMP`, `JSON`, `BSON`, `UUID` | Maps and non-byte slices and arrays are always mapped to MAP and LIST logical types, respectively. |
 | timeunit        | string | `MILLIS`, `MICROS`, `NANOS`                                                      | Only used when the logical type is TIME or TIMESTAMP, defaults to `NANOS`. |
-| isadjustedtoutc | bool   | ANY                                                                              | Only used when the logical type is TIME or TIMESTAMP, defaults to `false`. |
+| isadjustedtoutc | bool   | ANY                                                                              | Only used when the logical type is TIME or TIMESTAMP, defaults to `true`. |
 | scale           | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, defaults to 0. |
 | precision       | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, required. |
 
