@@ -242,7 +242,6 @@ implementations.
 | TIME         | int32, int64, goparquet.Time  | int32: TIME(MILLIS, {false,true}), int64: TIME({MICROS,NANOS}, {false,true}) |
 | TIMESTAMP    | int64, time.Time              |
 | INTEGER      | {,u}int{,8,16,32,64}          |
-| UNKNOWN      | nil                           |
 | JSON         | string, []byte                |
 | BSON         | string, []byte                |
 | UUID         | [16]byte                      |
@@ -261,8 +260,9 @@ tags (see below).
 | ------------------| ----------------------- | -------------------- |
 | bool              | BOOLEAN                 |
 | int{,8,16,32,64}  | INT{64,32,32,32,64}     | INTEGER({64,8,16,32,64}, true) |
-| uint{,8,16,32,64} | INT{64,32,32,32,64}     | INTEGER({32,8,16,32,64}, false) |
-| string, []byte    | BYTE\_ARRAY             | STRING |
+| uint{,8,16,32,64} | INT{32,32,32,32,64}     | INTEGER({32,8,16,32,64}, false) |
+| string            | BYTE\_ARRAY             | STRING |
+| []byte            | BYTE\_ARRAY             |
 | [N]byte           | FIXED\_LEN\_BYTE\_ARRAY |
 | time.Time         | INT64                   | TIMESTAMP(NANOS, true)
 | goparquet.Time    | INT64                   | TIME(NANOS, true)
