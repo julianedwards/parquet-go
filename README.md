@@ -62,7 +62,7 @@ marshalling and unmarshalling.
 | FLOAT                   | float32         |
 | DOUBLE                  | float64         |
 | BYTE\_ARRAY             | string, []byte  |
-| FIXED\_LEN\_BYTE\_ARRAY | []byte, [N]byte | Use any positive number for `N`. |
+| FIXED\_LEN\_BYTE\_ARRAY | []byte, [N]byte |
 
 Note: the low-level implementation only supports int32 for the INT32 type and int64 for the INT64 type in Parquet.
 Plain int or uint are not supported. The high-level `floor` package contains more extensive support for these
@@ -216,10 +216,10 @@ marshalling/unmarshalling in the `floor` subpackage—object schema definition
 generation is done implicitly by the `floor.Writer` and `floor.Reader`
 implementations.
 
-#### Supported Types
+#### Supported Parquet Types
 
 | Parquet Type            | Go Types                     | Note |
-| ----------------------- | ---------------              | ---- |
+| ----------------------- | ---------------------------- | ---- |
 | BOOLEAN                 | bool                         |
 | INT32                   | int{8,16,32}, uint{,8,16,32} | 
 | INT64                   | int{,64}, uint64             |
@@ -228,6 +228,8 @@ implementations.
 | DOUBLE                  | float64                      |
 | BYTE\_ARRAY             | string, []byte               |
 | FIXED\_LEN\_BYTE\_ARRAY | []byte, [N]byte              |
+
+#### Supported Logical Types
 
 | Logical Type | Go Types                      | Note |
 | ------------ | ----------------------------- | ---- |
@@ -285,15 +287,15 @@ based on a field's logical type.
 | logicaltype     | string | `STRING`, `ENUM`, `DECIMAL`, `DATE`, `TIME`, `TIMESTAMP`, `JSON`, `BSON`, `UUID` | Maps and non-byte slices and arrays are always mapped to MAP and LIST logical types, respectively. |
 | timeunit        | string | `MILLIS`, `MICROS`, `NANOS`                                                      | Only used when the logical type is TIME or TIMESTAMP, defaults to `NANOS`. |
 | isadjustedtoutc | bool   | ANY                                                                              | Only used when the logical type is TIME or TIMESTAMP, defaults to `true`. |
-| scale           | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, defaults to 0. |
-| precision       | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, required. |
+| scale           | int32  | N >= 0                                                                           | Only used when the logical type is DECIMAL, defaults to 0. |
+| precision       | int32  | N >= 0                                                                           | Only used when the logical type is DECIMAL, required. |
 
 All fields must be prefixed by `key.` and `value.` when referring to key and
 value types of a map, respectively, and `element.` when referring to the
 element type of a slice or array. It is invalid to prefix `name` since it can
 only apply to the field itself.
 
-#### Example
+#### Object Schema Example
 
 ```
 type example  struct {
@@ -304,15 +306,15 @@ type example  struct {
         Uint8              uint8           `parquet:"name=u_int_8"`
         Int96              [12]byte        `parquet:"name=int_96, type=INT96"`
         DefaultTS          time.Time       `parquet:"name=default_ts"`
-        Timestamp          int64           `parquet:"name=ts, logicaltype=TIMESTAMP, timeunit=MILLIS, isadjustedtoutc=true`
+        Timestamp          int64           `parquet:"name=ts, logicaltype=TIMESTAMP, timeunit=MILLIS, isadjustedtoutc=false`
         Date               time.Time       `parquet:"name=date, logicaltype=DATE"`
-        OptionalDecimal    *int32          `parquet:"name=decimal, logicaltype=DECIMAL, precision=5, scale=10"`
+        OptionalDecimal    *int32          `parquet:"name=decimal, logicaltype=DECIMAL, scale=5, precision=10"`
         TimeList           []int32         `parquet:"name=time_list, element.logicaltype=TIME, element.timeunit=MILLIS"`
 	DecimalTimeMap     map[int64]int32 `parquet:"name=decimal_time_map, key.logicaltype=DECIMAL, key.scale=5, key.precision=15, value.logicaltype=TIME, value.timeunit=MILLIS", value.isadjustedtoutc=true`
         Struct             struct {
                 OptionalInt64 *int64   `parquet:"name=int_64"`
 	        Time          int64    `parquet:"name=time, logicaltype=TIME, isadjustedtoutc=false"`
-	        StringList    []string `parquet:"name=time_list"`
+	        StringList    []string `parquet:"name=string_list"`
         } `parquet:"name=struct"`
 }
 ```
@@ -321,7 +323,7 @@ The above struct is equivalent to the following schema definition:
 
 ```
 message autogen_schema {
-    required binary byte_slice;
+    required binary byteslice;
     required binary string STRING;
     required binary byte_string STRING;
     required int64 int_64 INTEGER(64, true);
@@ -333,7 +335,7 @@ message autogen_schema {
     optional int32 decimal DECIMAL(10, 5);
     required group time_list (LIST) {
         repeated group list {
-          required int32 element TIME(MILLIS, false);
+          required int32 element TIME(MILLIS, true);
         }
     }
     optional group decimal_time_map (MAP) {
