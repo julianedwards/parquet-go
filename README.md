@@ -36,33 +36,33 @@ unmarshalling.
 ## Supported Features
 
 | Feature                                  | Read | Write | Note |
-| ---                                      | ---- | ---- | --- |
-| Compression                              | Yes  | Yes  | Only GZIP and SNAPPY are supported out of the box, but it is possible to add other compressors, see below. |
-| Dictionary Encoding                      | Yes  | Yes  |
-| Run Length Encoding / Bit-Packing Hybrid | Yes  | Yes  | The reader can read RLE/Bit-pack encoding, but the writer only uses bit-packing |
-| Delta Encoding                           | Yes  | Yes  |
-| Byte Stream Split                        | No   | No   |
-| Data page V1                             | Yes  | Yes  |
-| Data page V2                             | Yes  | Yes  |
-| Statistics in page meta data             | No   | Yes  | Page meta data is generally not made available to users and not used by parquet-go.
-| Index Pages                              | No   | No   |
-| Dictionary Pages                         | Yes  | Yes  |
-| Encryption                               | No   | No   |
-| Bloom Filter                             | No   | No   |
-| Logical Types                            | Yes  | Yes  | Support for logical type is in the high-level package (floor) the low level parquet library only supports the basic types, see the type mapping table |
+| ---                                      | ---- | ----- | ---- |
+| Compression                              | Yes  | Yes   | Only GZIP and SNAPPY are supported out of the box, but it is possible to add other compressors, see below. |
+| Dictionary Encoding                      | Yes  | Yes   |
+| Run Length Encoding / Bit-Packing Hybrid | Yes  | Yes   | The reader can read RLE/Bit-pack encoding, but the writer only uses bit-packing. |
+| Delta Encoding                           | Yes  | Yes   |
+| Byte Stream Split                        | No   | No    |
+| Data page V1                             | Yes  | Yes   |
+| Data page V2                             | Yes  | Yes   |
+| Statistics in page meta data             | No   | Yes   | Page meta data is generally not made available to users and not used by parquet-go. |
+| Index Pages                              | No   | No    |
+| Dictionary Pages                         | Yes  | Yes   |
+| Encryption                               | No   | No    |
+| Bloom Filter                             | No   | No    |
+| Logical Types                            | Yes  | Yes   | Support for logical type is in the high-level package (floor) the low level parquet library only supports the basic types, see the type mapping table. |
 
 ## Supported Data Types
 
-| Type in parquet         | Type in Go      | Note |
+| Parquet Type            | Go Type         | Note |
 | ----------------------- | --------------- | ---- |
-| boolean                 | bool            |
-| int32                   | int32           | See the note about the int type |
-| int64                   | int64           | See the note about the int type |
-| int96                   | [12]byte        |
-| float                   | float32         |
-| double                  | float64         |
-| byte_array              | []byte          |
-| fixed_len_byte_array(N) | [N]byte, []byte | use any positive number for `N` |
+| BOOLEAN                 | bool            |
+| INT32                   | int32           | See the note about the int type. |
+| INT64                   | int64           | See the note about the int type. |
+| INT96                   | [12]byte        |
+| FLOAT                   | float32         |
+| DOUBLE                  | float64         |
+| BYTE\_ARRAY             | string, []byte  |
+| FIXED\_LEN\_BYTE\_ARRAY | [N]byte, []byte | Use any positive number for `N`. |
 
 Note: the low-level implementation only supports int32 for the INT32 type and int64 for the INT64 type in Parquet.
 Plain int or uint are not supported. The high-level `floor` package contains more extensive support for these
@@ -70,31 +70,32 @@ data types.
 
 ## Supported Logical Types
 
-| Logical Type   | Mapped to Go types      | Note |
-| -------------- | ----------------------- | ---- |
-| STRING         | string, []byte          |
-| DATE           | int32, time.Time        | int32: days since Unix epoch (Jan 01 1970 00:00:00 UTC); time.Time only in `floor` |
-| TIME           | int32, int64, time.Time | int32: TIME(MILLIS, ...), int64: TIME(MICROS, ...), TIME(NANOS, ...); time.Time only in `floor` |
-| TIMESTAMP      | int64, int96, time.Time | time.Time only in `floor`
-| UUID           | [16]byte                |
-| LIST           | []T                     | slices of any type |
-| MAP            | map[T1]T2               | maps with any key and value types |
-| ENUM           | string, []byte          |
-| BSON           | []byte                  |
-| DECIMAL        | []byte, [N]byte         |
-| INT            | {,u}int{8,16,32,64}     | implementation is loose and will allow any INT logical type converted to any signed or unsigned int Go type. |
+| Logical Type | Mapped to Go types           | Note |
+| ------------ | -----------------------      | ---- |
+| STRING       | string, []byte               |
+| DATE         | int32, time.Time             | int32: Days since Unix epoch (Jan 01 1970 00:00:00 UTC); time.Time: only in `floor` |
+| TIME         | int32, int64, goparquet.Time | int32: TIME(MILLIS, ...), int64: TIME(MICROS, ...), TIME(NANOS, ...); goparquet.Time: only in `floor` |
+| TIMESTAMP    | int64, [12]byte, time.Time   | time.Time: only in `floor` |
+| UUID         | [16]byte                     |
+| LIST         | []T                          | Slices of any type. |
+| MAP          | map[T1]T2                    | Maps with any key and value types. |
+| ENUM         | string, []byte               |
+| JSON         | string, []byte               |
+| BSON         | string, []byte               |
+| DECIMAL      | int32, int64,[N]byte, []byte |
+| INTEGER      | {,u}int{8,16,32,64}          | Implementation is loose and will allow any INTEGER logical type converted to any signed or unsigned int Go type. |
 
 ## Supported Converted Types
 
-| Converted Type       | Mapped to Go types  | Note |
-| -------------------- | ------------------- | ---- |
-| UTF8                 | string, []byte      |
-| TIME\_MILLIS          | int32               | Number of milliseconds since the beginning of the day |
-| TIME\_MICROS          | int64               | Number of microseconds since the beginning of the day |
-| TIMESTAMP\_MILLIS     | int64               | Number of milliseconds since Unix epoch (Jan 01 1970 00:00:00 UTC) |
-| TIMESTAMP\_MICROS     | int64               | Number of milliseconds since Unix epoch (Jan 01 1970 00:00:00 UTC) |
-| {,U}INT\_{8,16,32,64} | {,u}int{8,16,32,64} | implementation is loose and will allow any converted type with any int Go type. |
-| INTERVAL             | [12]byte            |
+| Converted Type        | Mapped to Go types  | Note |
+| --------------------  | ------------------- | ---- |
+| UTF8                  | string, []byte      |
+| TIME\_MILLIS          | int32               | Number of milliseconds since the beginning of the day. |
+| TIME\_MICROS          | int64               | Number of microseconds since the beginning of the day. |
+| TIMESTAMP\_MILLIS     | int64               | Number of milliseconds since Unix epoch (Jan 01 1970 00:00:00 UTC). |
+| TIMESTAMP\_MICROS     | int64               | Number of milliseconds since Unix epoch (Jan 01 1970 00:00:00 UTC). |
+| {,U}INT\_{8,16,32,64} | {,u}int{8,16,32,64} | Implementation is loose and will allow any converted type with any int Go type. |
+| INTERVAL              | [12]byte            |
 
 Please note that converted types are deprecated. Logical types should be used preferably.
 
@@ -112,11 +113,15 @@ Please note that converted types are deprecated. Logical types should be used pr
 
 ## Schema Definition
 
-parquet-go comes with support for textual schema definitions. The sub-package
-`parquetschema` comes with a parser to turn the textual schema definition into
-the right data type to use elsewhere to specify parquet schemas. The syntax
-has been mostly reverse-engineered from a similar format also supported but
-barely documented in [Parquet's Java implementation](https://github.com/apache/parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/schema/MessageTypeParser.java).
+parquet-go comes with support for both textual and automatic object schema
+definitions.
+
+### Textual Schema Definitions
+
+The sub-package `parquetschema` comes with a parser to turn the textual schema
+definition into the right data type to use elsewhere to specify parquet
+schemas. The syntax has been mostly reverse-engineered from a similar format
+also supported but barely documented in [Parquet's Java implementation](https://github.com/apache/parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/schema/MessageTypeParser.java).
 
 For the full syntax, please have a look at the [parquetschema package Go documentation](http://godoc.org/github.com/fraugster/parquet-go/parquetschema).
 
@@ -201,6 +206,127 @@ it follows some conventions. In particular, it has to contain only a single
 `required group` with the name `key_value`, which in turn contains exactly two
 fields, one named `key`, the other named `value`. This represents a map
 structure in which each key is associated with one value.
+
+### Object Schema Definitions
+
+The subpackage `parquetschema/autoschema` supports auto-generating schema
+definitions for a provided object's type using reflection and struct tags. The
+generated schema is meant to be compatible with the reflection-based
+marshalling/unmarshalling in the `floor` subpackage—object schema definition
+generation is done implicitly by the `floor.Writer` and `floor.Reader`
+implementations.
+
+See [Supported Logical Types](## Supported Logical Types) and
+[Supported Conversion Types](## Supported Conversion Types) for more
+information.
+
+#### Default Parquet Types
+
+By default, Go types are mapped to Parquet types and in some cases logical
+types as well. More specific mappings can be achieved by the use of struct
+tags (see below).
+
+| Go Type           | Default Parquet Type    | Default Logical Type |
+| ------------------| ----------------------- | -------------------- |
+| bool              | BOOLEAN                 |
+| int{,8,16,32,64}  | INT{64,32,32,32,64}     | INTEGER({64,8,16,32,64}, true) |
+| uint{,8,16,32,64} | INT{64,32,32,32,64}     | INTEGER({32,8,16,32,64}, false) |
+| string, []byte    | BYTE\_ARRAY             | STRING |
+| [N]byte           | FIXED\_LEN\_BYTE\_ARRAY |
+| map               | group                   | MAP |
+| slice, array      | group                   | LIST |
+| struct            | group                   |
+| time.Time         | int64                   | TIMESTAMP(NANOS, true)
+| goparquet.Time    | int64                   | TIME(NANOS, true)
+
+Pointers are automatically mapped to optional fields. All other Go types are
+not supported, including funcs, interfaces, unsafe pointers, unsigned int
+pointers, and complex numnbers.
+
+#### Struct Tags
+
+Automatic schema definition supports the use of the `parquet` struct tag for
+further schema specification beyond the default mappings. Tag fields have the
+format `key=value` and are comma separated. The tags do not support converted
+types as these are now deprecated by Parquet. Since converted types are
+still needed to support backward compatibility, they are automatically set
+based on a field's logical type.
+
+| Tag Field       | Type   | Values                                                                           | Notes |
+| --------------- | ------ | -------------------------------------------------------------------------------- | ----- |
+| name            | string | ANY                                                                              | Defaults to the lower-case struct field name. |
+| type            | string | `INT96`                                                                          | Unless using a [12]byte field for INT96, this does not ever need to be specified. |
+| logicaltype     | string | `STRING`, `ENUM`, `DECIMAL`, `DATE`, `TIME`, `TIMESTAMP`, `JSON`, `BSON`, `UUID` | Maps and non-byte slices and arrays are always always mapped to MAP and LIST logical types, respectively. |
+| timeunit        | string | `MILLIS`, `MICROS`, `NANOS`                                                      | Only used when the logical type is TIME or TIMESTAMP, defaults to `NANOS`. |
+| isadjustedtoutc | bool   | ANY                                                                              | Only used when the logical type is TIME or TIMESTAMP, defaults to `false`. |
+| scale           | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, defaults to 0. |
+| precision       | int32  | [0, N]                                                                           | Only used when the logical type is DECIMAL, required. |
+
+All fields must be prefixed by `key.` and `value.` when referring to key and
+value types of a map, respectively, and `element.` when referring to the
+element type of a slice or array. It is invalid to prefix `name` since it can
+only apply to the the field itself.
+
+#### Example
+
+```
+type example  struct {
+        ByteSlice          []byte
+        String             string
+        ByteString         []byte          `parquet:"name=byte_string, logicaltype=STRING"`
+        Int64              int64           `parquet:"name=int_64"`
+        Uint8              uint8           `parquet:"name=u_int_8"`
+        Int96              [12]byte        `parquet:"name=int_96, type=INT96"`
+        DefaultTS          time.Time       `parquet:"name=default_ts"`
+        Timestamp          int64           `parquet:"name=ts, logicaltype=TIMESTAMP, timeunit=MILLIS, isadjustedtoutc=true`
+        Date               time.Time       `parquet:"name=date, logicaltype=DATE"`
+        OptionalDecimal    *int32          `parquet:"name=decimal, logicaltype=DECIMAL, precision=5, scale=10"`
+        TimeList           []int32         `parquet:"name=time_list, element.logicaltype=TIME, element.timeunit=MILLIS"`
+	DecimalTimeMap     map[int64]int32 `parquet:"name=decimal_time_map, key.logicaltype=DECIMAL, key.scale=5, key.precision=15, value.logicaltype=TIME, value.timeunit=MILLIS", value.isadjustedtoutc=true`
+        Struct             struct {
+                OptionalInt64 *int64   `parquet:"name=int_64"`
+	        Time          int64    `parquet:"name=time, logicaltype=TIME, isadjustedtoutc=false"`
+	        StringList    []string `parquet:"name=time_list"`
+        } `parquet:"name=struct"`
+}
+```
+
+The above struct is equivalent to the following schema definition:
+
+```
+message autogen_schema {
+    required binary byte_slice;
+    required binary string STRING;
+    required binary byte_string STRING;
+    required int64 int_64 INTEGER(64, true);
+    required int32 int_8 INTEGER(8, false);
+    required int96 int_96;
+    required int64 default_ts TIMESTAMP(NANOS, true);
+    required int64 ts TIMESTAMP(MILLIS, false);
+    required int32 date DATE;
+    optional int32 decimal DECIMAL(10, 5);
+    required group time_list (LIST) {
+        repeated group list {
+          required int32 element TIME(MILLIS, false);
+        }
+    }
+    optional group decimal_time_map (MAP) {
+        repeated group key_value (MAP_KEY_VALUE) {
+          required int64 key DECIMAL(15, 5);
+          required int32 value TIME(MILLIS, true);
+        }
+    }
+    required group struct {
+        optional int64 int_64 INTEGER(64, true);
+        required int64 time TIME(NANOS, false);
+        required group string_list (LIST) {
+            repeated group list {
+                required binary element STRING;
+            }
+        }
+    }
+}
+```
 
 ## Examples
 
