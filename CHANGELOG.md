@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Fixed CHANGELOG for v0.11.0.
-- Fixed bug in `goparquet.recursiveFix` that was overwriting column paths for repeated group elements in a schema defintion.
+- Fixed bug in `goparquet.recursiveFix` that was overwriting column paths for repeated group elements in a schema definition.
 - Added richer struct tag support for auto-generated schema definitions.
 
 ## [v0.11.0] - 2022-04-21
