@@ -241,7 +241,7 @@ tags (see below).
 
 Pointers are automatically mapped to optional fields. All other Go types are
 not supported, including funcs, interfaces, unsafe pointers, unsigned int
-pointers, and complex numnbers.
+pointers, and complex numbers.
 
 #### Struct Tags
 
@@ -265,7 +265,7 @@ based on a field's logical type.
 All fields must be prefixed by `key.` and `value.` when referring to key and
 value types of a map, respectively, and `element.` when referring to the
 element type of a slice or array. It is invalid to prefix `name` since it can
-only apply to the the field itself.
+only apply to the field itself.
 
 #### Example
 
