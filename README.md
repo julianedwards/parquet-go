@@ -10,14 +10,14 @@
 
 ---
 
-parquet-go is an implementation of the [Apache Parquet file format](https://github.com/apache/parquet-format)
-in Go. It provides functionality to both read and write parquet files, as well
-as high-level functionality to manage the data schema of parquet files, to
-directly write Go objects to parquet files using automatic or custom
-marshalling and to read records from parquet files into Go objects using
+`parquet-go` is an implementation of the [Apache Parquet file format](https://github.com/apache/parquet-format)
+in Go. It provides functionality to both read and write Parquet files, as well
+as high-level functionality to manage the data schema of Parquet files, to
+directly write Go objects to Parquet files using automatic or custom
+marshalling and to read records from Parquet files into Go objects using
 automatic or custom marshalling.
 
-parquet is a file format to store nested data structures in a flat columnar
+Parquet is a file format to store nested data structures in a flat columnar
 format. By storing in a column-oriented way, it allows for efficient reading
 of individual columns without having to read and decode complete rows. This
 allows for efficient reading and faster processing when using the file format
@@ -25,18 +25,18 @@ in conjunction with distributed data processing frameworks like Apache Hadoop
 or distributed SQL query engines like Presto and AWS Athena.
 
 This implementation is divided into several packages. The top-level package is
-the low-level implementation of the parquet file format. It is accompanied by
-the sub-packages parquetschema and floor. parquetschema provides functionality
-to parse textual schema definitions as well as the data types to manually or
-programmatically construct schema definitions. floor is a high-level wrapper
-around the low-level package. It provides functionality to open parquet files
-to read from them or write to them using automated or custom marshalling and
-unmarshalling.
+the low-level implementation of the Parquet file format. It is accompanied by
+the sub-packages `parquetschema` and `floor`. `parquetschema` provides
+functionality to parse textual schema definitions as well as the data types to
+manually or programmatically construct schema definitions. `floor` is a
+high-level wrapper around the low-level package. It provides functionality to
+open Parquet files to read from them or write to them using automated or custom
+marshalling and unmarshalling.
 
 ## Supported Features
 
 | Feature                                  | Read | Write | Note |
-| ---                                      | ---- | ----- | ---- |
+| ---------------------------------------- | ---- | ----- | ---- |
 | Compression                              | Yes  | Yes   | Only GZIP and SNAPPY are supported out of the box, but it is possible to add other compressors, see below. |
 | Dictionary Encoding                      | Yes  | Yes   |
 | Run Length Encoding / Bit-Packing Hybrid | Yes  | Yes   | The reader can read RLE/Bit-pack encoding, but the writer only uses bit-packing. |
@@ -44,12 +44,12 @@ unmarshalling.
 | Byte Stream Split                        | No   | No    |
 | Data page V1                             | Yes  | Yes   |
 | Data page V2                             | Yes  | Yes   |
-| Statistics in page meta data             | No   | Yes   | Page meta data is generally not made available to users and not used by parquet-go. |
+| Statistics in page meta data             | No   | Yes   | Page meta data is generally not made available to users and not used by `parquet-go`. |
 | Index Pages                              | No   | No    |
 | Dictionary Pages                         | Yes  | Yes   |
 | Encryption                               | No   | No    |
 | Bloom Filter                             | No   | No    |
-| Logical Types                            | Yes  | Yes   | Support for logical type is in the high-level package (floor) the low level parquet library only supports the basic types, see the type mapping table. |
+| Logical Types                            | Yes  | Yes   | Support for logical type is in the high-level package `floor` the low level Parquet library only supports the basic types, see the type mapping table. |
 
 ## Supported Data Types
 
@@ -62,7 +62,7 @@ unmarshalling.
 | FLOAT                   | float32         |
 | DOUBLE                  | float64         |
 | BYTE\_ARRAY             | string, []byte  |
-| FIXED\_LEN\_BYTE\_ARRAY | [N]byte, []byte | Use any positive number for `N`. |
+| FIXED\_LEN\_BYTE\_ARRAY | []byte, [N]byte | Use any positive number for `N`. |
 
 Note: the low-level implementation only supports int32 for the INT32 type and int64 for the INT64 type in Parquet.
 Plain int or uint are not supported. The high-level `floor` package contains more extensive support for these
@@ -77,13 +77,13 @@ data types.
 | TIME         | int32, int64, goparquet.Time | int32: TIME(MILLIS, ...), int64: TIME(MICROS, ...), TIME(NANOS, ...); goparquet.Time: only in `floor` |
 | TIMESTAMP    | int64, [12]byte, time.Time   | time.Time: only in `floor` |
 | UUID         | [16]byte                     |
-| LIST         | []T                          | Slices of any type. |
+| LIST         | []T, [N]T                    | Slices and arrays of any type. |
 | MAP          | map[T1]T2                    | Maps with any key and value types. |
 | ENUM         | string, []byte               |
 | JSON         | string, []byte               |
 | BSON         | string, []byte               |
-| DECIMAL      | int32, int64,[N]byte, []byte |
-| INTEGER      | {,u}int{8,16,32,64}          | Implementation is loose and will allow any INTEGER logical type converted to any signed or unsigned int Go type. |
+| DECIMAL      | int32, int64,[]byte, [N]byte |
+| INTEGER      | {,u}int{,8,16,32,64}         | Implementation is loose and will allow any INTEGER logical type converted to any signed or unsigned int Go type. |
 
 ## Supported Converted Types
 
@@ -113,13 +113,13 @@ Please note that converted types are deprecated. Logical types should be used pr
 
 ## Schema Definition
 
-parquet-go comes with support for both textual and automatic object schema
+`parquet-go` comes with support for both textual and automatic object schema
 definitions.
 
 ### Textual Schema Definitions
 
 The sub-package `parquetschema` comes with a parser to turn the textual schema
-definition into the right data type to use elsewhere to specify parquet
+definition into the right data type to use elsewhere to specify Parquet
 schemas. The syntax has been mostly reverse-engineered from a similar format
 also supported but barely documented in [Parquet's Java implementation](https://github.com/apache/parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/schema/MessageTypeParser.java).
 
@@ -127,7 +127,7 @@ For the full syntax, please have a look at the [parquetschema package Go documen
 
 Generally, the schema definition describes the structure of a message. Parquet
 will then flatten this into a purely column-based structure when writing the
-actual data to parquet files.
+actual data to Parquet files.
 
 A message consists of a number of fields. Each field either has type or is a
 group. A group itself consists of a number of fields, which in turn can have
@@ -142,7 +142,7 @@ or converted type that annotates something about the general structure at this
 point, e.g. `LIST` indicates a more complex list structure, or `MAP` a key-value
 map structure, both following certain conventions. Optionally, a typed field
 can also have a numeric field ID. The field ID has no purpose intrinsic to the
-parquet file format.
+Parquet file format.
 
 Here is a simple example of a message with a few typed fields:
 
@@ -216,11 +216,40 @@ marshalling/unmarshalling in the `floor` subpackage—object schema definition
 generation is done implicitly by the `floor.Writer` and `floor.Reader`
 implementations.
 
-See [Supported Logical Types](## Supported Logical Types) and
-[Supported Conversion Types](## Supported Conversion Types) for more
-information.
+#### Supported Types
 
-#### Default Parquet Types
+| Parquet Type            | Go Types                     | Note |
+| ----------------------- | ---------------              | ---- |
+| BOOLEAN                 | bool                         |
+| INT32                   | int{8,16,32}, uint{,8,16,32} | 
+| INT64                   | int{,64}, uint64             |
+| INT96                   | [12]byte                     | Must specify `type=INT96` in `parquet` struct tag. |
+| FLOAT                   | float32                      |
+| DOUBLE                  | float64                      |
+| BYTE\_ARRAY             | string, []byte               |
+| FIXED\_LEN\_BYTE\_ARRAY | []byte, [N]byte              |
+
+| Logical Type | Go Types                      | Note |
+| ------------ | ----------------------------- | ---- |
+| STRING       | string, []byte                |
+| MAP          | map[T1]T2                     | Maps with any key and value types. |
+| LIST         | []T, [N]T                     | Slices and arrays of any type except for byte. |
+| ENUM         | string, []byte                |
+| DECIMAL      | int32, int64, []byte, [N]byte |
+| DATE         | int32, time.Time              |
+| TIME         | int32, int64, goparquet.Time  | int32: TIME(MILLIS, {false,true}), int64: TIME({MICROS,NANOS}, {false,true}) |
+| TIMESTAMP    | int64, time.Time              |
+| INTEGER      | {,u}int{,8,16,32,64}          |
+| UNKNOWN      | nil                           |
+| JSON         | string, []byte                |
+| BSON         | string, []byte                |
+| UUID         | [16]byte                      |
+
+Pointers are automatically mapped to optional fields. Unsupported Go types
+include funcs, interfaces, unsafe pointers, unsigned int pointers, and complex
+numbers.
+
+#### Default Type Mappings
 
 By default, Go types are mapped to Parquet types and in some cases logical
 types as well. More specific mappings can be achieved by the use of struct
@@ -239,17 +268,14 @@ tags (see below).
 | slice, array      | group                   | LIST |
 | struct            | group                   |
 
-Pointers are automatically mapped to optional fields. All other Go types are
-not supported, including funcs, interfaces, unsafe pointers, unsigned int
-pointers, and complex numbers.
 
 #### Struct Tags
 
-Automatic schema definition supports the use of the `parquet` struct tag for
-further schema specification beyond the default mappings. Tag fields have the
-format `key=value` and are comma separated. The tags do not support converted
-types as these are now deprecated by Parquet. Since converted types are
-still needed to support backward compatibility, they are automatically set
+Automatic schema definition generation supports the use of the `parquet` struct
+tag for further schema specification beyond the default mappings. Tag fields
+have the format `key=value` and are comma separated. The tags do not support
+converted types as these are now deprecated by Parquet. Since converted types
+are still needed to support backward compatibility, they are automatically set
 based on a field's logical type.
 
 | Tag Field       | Type   | Values                                                                           | Notes |
@@ -336,22 +362,22 @@ for more advanced examples. The tools are located in the `cmd` directory.
 
 ## Tools
 
-`parquet-go` comes with tooling to inspect and generate parquet tools.
+`parquet-go` comes with tooling to inspect and generate Parquet files.
 
 ### parquet-tool
 
 `parquet-tool` allows you to inspect the meta data, the schema and the number of rows
-as well as print the content of a parquet file. You can also use it to split an existing
-parquet file into multiple smaller files.
+as well as print the content of a Parquet file. You can also use it to split an existing
+Parquet file into multiple smaller files.
 
 Install it by running `go get github.com/fraugster/parquet-go/cmd/parquet-tool` on your command line.
 For more detailed help on how to use the tool, consult `parquet-tool --help`.
 
 ### csv2parquet
 
-`csv2parquet` makes it possible to convert an existing CSV file into a parquet file. By default,
+`csv2parquet` makes it possible to convert an existing CSV file into a Parquet file. By default,
 all columns are simply turned into strings, but you provide it with type hints to influence
-the generated parquet schema.
+the generated Parquet schema.
 
 You can install this tool by running `go get github.com/fraugster/parquet-go/cmd/csv2parquet` on your command line.
 For more help, consult `csv2parquet --help`.
