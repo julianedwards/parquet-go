@@ -209,10 +209,10 @@ structure in which each key is associated with one value.
 
 ### Object Schema Definitions
 
-The subpackage `parquetschema/autoschema` supports auto-generating schema
+The sub-package `parquetschema/autoschema` supports auto-generating schema
 definitions for a provided object's type using reflection and struct tags. The
 generated schema is meant to be compatible with the reflection-based
-marshalling/unmarshalling in the `floor` subpackage—object schema definition
+marshalling/unmarshalling in the `floor` sub-package—object schema definition
 generation is done implicitly by the `floor.Writer` and `floor.Reader`
 implementations.
 
@@ -223,7 +223,7 @@ implementations.
 | BOOLEAN                 | bool                         |
 | INT32                   | int{8,16,32}, uint{,8,16,32} | 
 | INT64                   | int{,64}, uint64             |
-| INT96                   | [12]byte                     | Must specify `type=INT96` in `parquet` struct tag. |
+| INT96                   | [12]byte                     | Must specify `type=INT96` in the `parquet` struct tag. |
 | FLOAT                   | float32                      |
 | DOUBLE                  | float64                      |
 | BYTE\_ARRAY             | string, []byte               |
