@@ -277,8 +277,8 @@ Automatic schema definition generation supports the use of the `parquet` struct
 tag for further schema specification beyond the default mappings. Tag fields
 have the format `key=value` and are comma separated. The tags do not support
 converted types as these are now deprecated by Parquet. Since converted types
-are still needed to support backward compatibility, they are automatically set
-based on a field's logical type.
+are still required to support backward compatibility, they are automatically
+set based on a field's logical type.
 
 | Tag Field       | Type   | Values                                                                           | Notes |
 | --------------- | ------ | -------------------------------------------------------------------------------- | ----- |
@@ -324,32 +324,32 @@ The above struct is equivalent to the following schema definition:
 ```
 message autogen_schema {
     required binary byteslice;
-    required binary string STRING;
-    required binary byte_string STRING;
-    required int64 int_64 INTEGER(64, true);
-    required int32 int_8 INTEGER(8, false);
+    required binary string (STRING);
+    required binary byte_string (STRING);
+    required int64 int_64 (INTEGER(64,true));
+    required int32 int_8 (INTEGER(8,false));
     required int96 int_96;
-    required int64 default_ts TIMESTAMP(NANOS, true);
-    required int64 ts TIMESTAMP(MILLIS, false);
-    required int32 date DATE;
-    optional int32 decimal DECIMAL(10, 5);
+    required int64 default_ts (TIMESTAMP(NANOS,true));
+    required int64 ts (TIMESTAMP(MILLIS,false));
+    required int32 date (DATE);
+    optional int32 decimal (DECIMAL(10,5));
     required group time_list (LIST) {
         repeated group list {
-          required int32 element TIME(MILLIS, true);
+          required int32 element (TIME(MILLIS,true));
         }
     }
     optional group decimal_time_map (MAP) {
         repeated group key_value (MAP_KEY_VALUE) {
-          required int64 key DECIMAL(15, 5);
-          required int32 value TIME(MILLIS, true);
+          required int64 key (DECIMAL(15,5));
+          required int32 value (TIME(MILLIS, true));
         }
     }
     required group struct {
-        optional int64 int_64 INTEGER(64, true);
-        required int64 time TIME(NANOS, false);
+        optional int64 int_64 (INTEGER(64,true));
+        required int64 time (TIME(NANOS, false));
         required group string_list (LIST) {
             repeated group list {
-                required binary element STRING;
+                required binary element (STRING);
             }
         }
     }
