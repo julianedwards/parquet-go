@@ -147,11 +147,11 @@ func (m *reflectMarshaller) decodeStruct(record interfaces.MarshalObject, value 
 func (m *reflectMarshaller) decodeTimeValue(elem *parquet.SchemaElement, field interfaces.MarshalElement, value reflect.Value) error {
 	switch {
 	case elem.GetLogicalType().TIME.Unit.IsSetNANOS():
-		field.SetInt64(value.Interface().(Time).Nanoseconds())
+		field.SetInt64(value.Interface().(goparquet.Time).Nanoseconds())
 	case elem.GetLogicalType().TIME.Unit.IsSetMICROS():
-		field.SetInt64(value.Interface().(Time).Microseconds())
+		field.SetInt64(value.Interface().(goparquet.Time).Microseconds())
 	case elem.GetLogicalType().TIME.Unit.IsSetMILLIS():
-		field.SetInt32(value.Interface().(Time).Milliseconds())
+		field.SetInt32(value.Interface().(goparquet.Time).Milliseconds())
 	default:
 		return errors.New("invalid TIME unit")
 	}
@@ -189,7 +189,7 @@ func (m *reflectMarshaller) decodeValue(field interfaces.MarshalElement, value r
 		value = value.Elem()
 	}
 
-	if value.Type().ConvertibleTo(reflect.TypeOf(Time{})) {
+	if value.Type().ConvertibleTo(reflect.TypeOf(goparquet.Time{})) {
 		if elem.LogicalType != nil && elem.GetLogicalType().IsSetTIME() {
 			return m.decodeTimeValue(elem, field, value)
 		}

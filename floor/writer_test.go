@@ -282,9 +282,9 @@ func TestDecodeStruct(t *testing.T) {
 		},
 		{
 			Input: struct {
-				Lunch Time
+				Lunch goparquet.Time
 			}{
-				Lunch: MustTime(NewTime(12, 30, 0, 0)),
+				Lunch: goparquet.MustTime(goparquet.NewTime(12, 30, 0, 0)),
 			},
 			ExpectedOutput: map[string]interface{}{"lunch": int32(45000000)},
 			ExpectErr:      false,
@@ -292,9 +292,9 @@ func TestDecodeStruct(t *testing.T) {
 		},
 		{
 			Input: struct {
-				BeddyByes Time
+				BeddyByes goparquet.Time
 			}{
-				BeddyByes: MustTime(NewTime(20, 15, 30, 0)),
+				BeddyByes: goparquet.MustTime(goparquet.NewTime(20, 15, 30, 0)),
 			},
 			ExpectedOutput: map[string]interface{}{"beddybyes": int64(72930000000)},
 			ExpectErr:      false,
@@ -302,9 +302,9 @@ func TestDecodeStruct(t *testing.T) {
 		},
 		{
 			Input: struct {
-				WakeyWakey Time
+				WakeyWakey goparquet.Time
 			}{
-				WakeyWakey: MustTime(NewTime(7, 5, 59, 0)),
+				WakeyWakey: goparquet.MustTime(goparquet.NewTime(7, 5, 59, 0)),
 			},
 			ExpectedOutput: map[string]interface{}{"wakeywakey": int64(25559000000000)},
 			ExpectErr:      false,
@@ -416,13 +416,13 @@ func TestWriteFile(t *testing.T) {
 		Foo  int64
 		Bar  *string
 		Baz  []int32
-		Time *Time
+		Time *goparquet.Time
 	}{
 		{23, strPtr("hello!"), []int32{23}, nil},
 		{42, strPtr("world!"), []int32{1, 1, 2, 3, 5}, nil},
 		{500, nil, nil, nil},
 		{750, strPtr("empty"), nil, nil},
-		{1000, strPtr("bye!"), []int32{2, 3, 5, 7, 11}, timePtr(MustTime(NewTime(16, 20, 0, 0)))},
+		{1000, strPtr("bye!"), []int32{2, 3, 5, 7, 11}, timePtr(goparquet.MustTime(goparquet.NewTime(16, 20, 0, 0)))},
 	}
 
 	for idx, d := range data {
@@ -497,7 +497,7 @@ func TestWriteFile(t *testing.T) {
 	}
 }
 
-func timePtr(t Time) *Time {
+func timePtr(t goparquet.Time) *goparquet.Time {
 	return &t
 }
 
@@ -635,7 +635,7 @@ func BenchmarkWriteFile(b *testing.B) {
 		Foo  int64
 		Bar  *string
 		Baz  []int32
-		Time *Time
+		Time *goparquet.Time
 	}{
 		42, strPtr("world!"), []int32{1, 1, 2, 3, 5}, nil,
 	}
