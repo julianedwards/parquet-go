@@ -12,27 +12,57 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Struct tag field keys and prefixes.
 const (
-	structTagName            = "name"
-	structTagType            = "type"
-	structTagLogicalType     = "logicaltype"
-	structTagIsAdjustedToUTC = "isadjustedtoutc"
-	structTagTimeUnit        = "timeunit"
-	structTagScale           = "scale"
-	structTagPrecision       = "precision"
-	structTagKeyPrefix       = "key."
-	structTagValuePrefix     = "value."
-	structTagElementPrefix   = "element."
+	StructTagNameKey            = "name"
+	StructTagTypeKey            = "type"
+	StructTagLogicalTypeKey     = "logicaltype"
+	StructTagIsAdjustedToUTCKey = "isadjustedtoutc"
+	StructTagTimeUnitKey        = "timeunit"
+	StructTagScaleKey           = "scale"
+	StructTagPrecisionKey       = "precision"
+	StructTagKeyPrefix          = "key."
+	StructTagValuePrefix        = "value."
+	StructTagElementPrefix      = "element."
 )
+
+// CreateTagFieldMap parses the struct field's `parquet` tag and returns a map
+// of struct field key to value pairs. Struct tag fields should be in the
+// format `key=value` and comma-seprarated.
+func CreateTagFieldMap(field reflect.StructField, prefix string) (map[string]string, error) {
+	tagFieldMap := map[string]string{}
+	for _, tagField := range strings.Split(field.Tag.Get("parquet"), ",") {
+		splitField := strings.Split(tagField, "=")
+		if len(splitField) != 2 {
+			// The struct tag field does not follow the `key=val`
+			// convention, skip it.
+			continue
+		}
+
+		prefixedKey := strings.TrimSpace(splitField[0])
+		if !strings.HasPrefix(prefixedKey, prefix) {
+			// Ignore required prefix for this mapping, such as
+			// "key." or "value.".
+			continue
+		}
+		key := prefixedKey[len(prefix):]
+		if _, ok := tagFieldMap[key]; ok {
+			return nil, errors.Errorf("struct tag field '%s' specified more than once", prefixedKey)
+		}
+		tagFieldMap[key] = strings.TrimSpace(splitField[1])
+	}
+
+	return tagFieldMap, nil
+}
 
 func parseParquetTag(field reflect.StructField, columnType reflect.Type, column *parquetschema.ColumnDefinition) error {
 	element := column.SchemaElement
-	tagFieldMap, err := createTagFieldMap(field, getParquetTagPrefix(element.Name))
+	tagFieldMap, err := CreateTagFieldMap(field, getParquetTagPrefix(element.Name))
 	if err != nil {
 		return errors.Wrap(err, "creating struct tag field map")
 	}
 
-	if name, ok := tagFieldMap[structTagName]; ok {
+	if name, ok := tagFieldMap[StructTagNameKey]; ok {
 		element.Name = name
 	} else if element.Name == "" {
 		element.Name = strings.ToLower(field.Name)
@@ -45,14 +75,14 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		return nil
 	}
 
-	if typeString, ok := tagFieldMap[structTagType]; ok {
+	if typeString, ok := tagFieldMap[StructTagTypeKey]; ok {
 		element.Type, err = typeFromString(typeString)
 		if err != nil {
 			return errors.Wrap(err, "getting type from string")
 		}
 	}
 
-	if logicalTypeString, ok := tagFieldMap[structTagLogicalType]; ok {
+	if logicalTypeString, ok := tagFieldMap[StructTagLogicalTypeKey]; ok {
 		element.LogicalType, element.ConvertedType, err = logicalTypeFromString(logicalTypeString)
 		if err != nil {
 			return errors.Wrap(err, "getting the logical type from string")
@@ -67,7 +97,7 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		}
 	}
 
-	if isAdjustedToUTCString, ok := tagFieldMap[structTagIsAdjustedToUTC]; ok || (element.LogicalType != nil && (element.LogicalType.TIME != nil || element.LogicalType.TIMESTAMP != nil)) {
+	if isAdjustedToUTCString, ok := tagFieldMap[StructTagIsAdjustedToUTCKey]; ok || (element.LogicalType != nil && (element.LogicalType.TIME != nil || element.LogicalType.TIMESTAMP != nil)) {
 		isAdjustedToUTC, err := isAdjustedToUTCFromString(isAdjustedToUTCString)
 		if err != nil {
 			return errors.Wrap(err, "getting is adjusted to UTC from string")
@@ -85,7 +115,7 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		}
 	}
 
-	if timeUnitString, ok := tagFieldMap[structTagTimeUnit]; ok || (element.LogicalType != nil && (element.LogicalType.TIME != nil || element.LogicalType.TIMESTAMP != nil)) {
+	if timeUnitString, ok := tagFieldMap[StructTagTimeUnitKey]; ok || (element.LogicalType != nil && (element.LogicalType.TIME != nil || element.LogicalType.TIMESTAMP != nil)) {
 		tu, err := timeUnitFromString(timeUnitString)
 		if err != nil {
 			return errors.Wrap(err, "getting time unit from string")
@@ -117,7 +147,7 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		}
 	}
 
-	if scaleString, ok := tagFieldMap[structTagScale]; ok {
+	if scaleString, ok := tagFieldMap[StructTagScaleKey]; ok {
 		scale, err := strconv.ParseInt(scaleString, 10, 32)
 		if err != nil {
 			return errors.Errorf("converting the specified scale value '%s' to int32", scaleString)
@@ -132,7 +162,7 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 		element.LogicalType.DECIMAL.Scale = int32(scale)
 	}
 
-	if precisionString, ok := tagFieldMap[structTagPrecision]; ok {
+	if precisionString, ok := tagFieldMap[StructTagPrecisionKey]; ok {
 		precision, err := strconv.ParseInt(precisionString, 10, 32)
 		if err != nil {
 			return errors.Errorf("converting the specified precision value '%s' to int32", precisionString)
@@ -150,10 +180,10 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 	// Check type compatibility at the end since there may have been some
 	// additional logical after setting the Parquet type and Parquet
 	// logical type that affects validity (e.g. time unit specification).
-	if _, ok := tagFieldMap[structTagType]; ok && !isTypeCompatible(element.Type, columnType) {
+	if _, ok := tagFieldMap[StructTagTypeKey]; ok && !isTypeCompatible(element.Type, columnType) {
 		return errors.Errorf("incompatible Go type %s and Parquet type %s", columnType, element.Type.String())
 	}
-	if _, ok := tagFieldMap[structTagLogicalType]; ok && !isLogicalTypeCompatible(element.LogicalType, columnType) {
+	if _, ok := tagFieldMap[StructTagLogicalTypeKey]; ok && !isLogicalTypeCompatible(element.LogicalType, columnType) {
 		return errors.Errorf("incompatible Go type %s and Parquet logical type %s", columnType, parquetschema.GetSchemaLogicalType(element.LogicalType))
 	}
 
@@ -163,40 +193,14 @@ func parseParquetTag(field reflect.StructField, columnType reflect.Type, column 
 func getParquetTagPrefix(name string) string {
 	switch name {
 	case "key":
-		return structTagKeyPrefix
+		return StructTagKeyPrefix
 	case "value":
-		return structTagValuePrefix
+		return StructTagValuePrefix
 	case "element":
-		return structTagElementPrefix
+		return StructTagElementPrefix
 	default:
 		return ""
 	}
-}
-
-func createTagFieldMap(field reflect.StructField, prefix string) (map[string]string, error) {
-	tagFieldMap := map[string]string{}
-	for _, tagField := range strings.Split(field.Tag.Get("parquet"), ",") {
-		splitField := strings.Split(tagField, "=")
-		if len(splitField) != 2 {
-			// The struct tag field does not follow the `key=val`
-			// convention, skip it.
-			continue
-		}
-
-		prefixedKey := strings.TrimSpace(splitField[0])
-		if !strings.HasPrefix(prefixedKey, prefix) {
-			// Ignore required prefix for this mapping, such as
-			// "key." or "value.".
-			continue
-		}
-		key := prefixedKey[len(prefix):]
-		if _, ok := tagFieldMap[key]; ok {
-			return nil, errors.Errorf("struct tag field '%s' specified more than once", prefixedKey)
-		}
-		tagFieldMap[key] = strings.TrimSpace(splitField[1])
-	}
-
-	return tagFieldMap, nil
 }
 
 func typeFromString(s string) (*parquet.Type, error) {

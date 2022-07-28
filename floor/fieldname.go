@@ -3,17 +3,23 @@ package floor
 import (
 	"reflect"
 	"strings"
+
+	"github.com/fraugster/parquet-go/parquetschema/autoschema"
 )
 
 var fieldNameFunc = fieldNameToLower
 
-func fieldNameToLower(field reflect.StructField) string {
-	parquetStructTag, ok := field.Tag.Lookup("parquet")
-	if !ok {
-		return strings.ToLower(field.Name)
+func fieldNameToLower(field reflect.StructField) (name string) {
+	defer func() {
+		if name == "" {
+			name = strings.ToLower(field.Name)
+		}
+	}()
+
+	tagFieldMap, err := autoschema.CreateTagFieldMap(field, "")
+	if err == nil {
+		name = tagFieldMap[autoschema.StructTagNameKey]
 	}
 
-	parquetStructTagFields := strings.Split(parquetStructTag, ",")
-
-	return strings.TrimSpace(parquetStructTagFields[0])
+	return
 }
