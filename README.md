@@ -212,9 +212,7 @@ structure in which each key is associated with one value.
 The sub-package `parquetschema/autoschema` supports auto-generating schema
 definitions for a provided object's type using reflection and struct tags. The
 generated schema is meant to be compatible with the reflection-based
-marshalling/unmarshalling in the `floor` sub-package—object schema definition
-generation is done implicitly by the `floor.Writer` and `floor.Reader`
-implementations.
+marshalling/unmarshalling in the `floor`.
 
 #### Supported Parquet Types
 
