@@ -1,14 +1,13 @@
 package autoschema
 
 import (
-	"errors"
-	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
+	goparquet "github.com/fraugster/parquet-go"
 	"github.com/fraugster/parquet-go/parquet"
 	"github.com/fraugster/parquet-go/parquetschema"
+	"github.com/pkg/errors"
 )
 
 // GenerateSchema auto-generates a schema definition for a provided object's type
@@ -18,17 +17,22 @@ func GenerateSchema(obj interface{}) (*parquetschema.SchemaDefinition, error) {
 	valueObj := reflect.ValueOf(obj)
 	columns, err := generateSchema(valueObj.Type())
 	if err != nil {
-		return nil, fmt.Errorf("can't generate schema: %w", err)
+		return nil, errors.Wrap(err, "generating schema")
 	}
 
-	return &parquetschema.SchemaDefinition{
+	schemaDef := &parquetschema.SchemaDefinition{
 		RootColumn: &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Name: "autogen_schema",
 			},
 			Children: columns,
 		},
-	}, nil
+	}
+	if err = schemaDef.Validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid schema")
+	}
+
+	return schemaDef, nil
 }
 
 func generateSchema(objType reflect.Type) ([]*parquetschema.ColumnDefinition, error) {
@@ -43,32 +47,38 @@ func generateSchema(objType reflect.Type) ([]*parquetschema.ColumnDefinition, er
 	columns := []*parquetschema.ColumnDefinition{}
 
 	for i := 0; i < objType.NumField(); i++ {
-		fieldType := objType.Field(i)
-		fieldName := fieldNameToLower(fieldType)
+		field := objType.Field(i)
 
-		column, err := generateField(fieldType.Type, fieldName)
+		column, err := generateField(field, field.Type, "")
 		if err != nil {
 			return nil, err
 		}
-
 		columns = append(columns, column)
 	}
 
 	return columns, nil
 }
 
-func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.ColumnDefinition, error) {
+func generateField(field reflect.StructField, fieldType reflect.Type, fieldName string) (column *parquetschema.ColumnDefinition, err error) {
+	defer func() {
+		if err == nil {
+			if err = errors.Wrapf(parseParquetTag(field, fieldType, column), "parsing Parquet struct tag for field '%s'", field.Name); err != nil {
+				column = nil
+			}
+		}
+	}()
+
 	switch fieldType.Kind() {
 	case reflect.Bool:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_BOOLEAN),
 				Name:           fieldName,
 				RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 			},
-		}, nil
+		}
 	case reflect.Int:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT64),
 				Name:           fieldName,
@@ -81,9 +91,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Int8:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -96,9 +106,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Int16:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -111,9 +121,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Int32:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -126,9 +136,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Int64:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT64),
 				Name:           fieldName,
@@ -141,9 +151,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uint:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -156,9 +166,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uint8:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -171,9 +181,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uint16:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -186,9 +196,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uint32:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT32),
 				Name:           fieldName,
@@ -201,9 +211,9 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uint64:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_INT64),
 				Name:           fieldName,
@@ -216,45 +226,49 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
+		}
 	case reflect.Uintptr:
-		return nil, errors.New("unsupported type uintptr")
+		err = errors.New("unsupported type uintptr")
 	case reflect.Float32:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_FLOAT),
 				Name:           fieldName,
 				RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 			},
-		}, nil
+		}
 	case reflect.Float64:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_DOUBLE),
 				Name:           fieldName,
 				RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 			},
-		}, nil
+		}
 	case reflect.Complex64:
-		return nil, errors.New("unsupported type complex64")
+		err = errors.New("unsupported type complex64")
 	case reflect.Complex128:
-		return nil, errors.New("unsupported type complex128")
+		err = errors.New("unsupported type complex128")
 	case reflect.Chan:
-		return nil, errors.New("unsupported type chan")
+		err = errors.New("unsupported type chan")
 	case reflect.Func:
-		return nil, errors.New("unsupported type func")
+		err = errors.New("unsupported type func")
 	case reflect.Interface:
-		return nil, errors.New("unsupported type interface")
+		err = errors.New("unsupported type interface")
 	case reflect.Map:
-		keyType, err := generateField(fieldType.Key(), "key")
+		var keyType *parquetschema.ColumnDefinition
+		keyType, err = generateField(field, fieldType.Key(), "key")
 		if err != nil {
-			return nil, err
+			return
 		}
-		valueType, err := generateField(fieldType.Elem(), "value")
+
+		var valueType *parquetschema.ColumnDefinition
+		valueType, err = generateField(field, fieldType.Elem(), "value")
 		if err != nil {
-			return nil, err
+			return
 		}
-		return &parquetschema.ColumnDefinition{
+
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Name:           fieldName,
 				RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_OPTIONAL),
@@ -276,68 +290,70 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					},
 				},
 			},
-		}, nil
-	case reflect.Ptr:
-		colDef, err := generateField(fieldType.Elem(), fieldName)
-		if err != nil {
-			return nil, err
 		}
-		colDef.SchemaElement.RepetitionType = parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_OPTIONAL)
-		return colDef, nil
+	case reflect.Ptr:
+		column, err = generateField(field, fieldType.Elem(), fieldName)
+		if err != nil {
+			return
+		}
+		column.SchemaElement.RepetitionType = parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_OPTIONAL)
 	case reflect.Slice, reflect.Array:
 		if fieldType.Elem().Kind() == reflect.Uint8 {
 			switch fieldType.Kind() {
 			case reflect.Slice:
-				// handle special case for []byte
-				return &parquetschema.ColumnDefinition{
+				// Handle special case for []byte.
+				column = &parquetschema.ColumnDefinition{
 					SchemaElement: &parquet.SchemaElement{
 						Type:           parquet.TypePtr(parquet.Type_BYTE_ARRAY),
 						Name:           fieldName,
 						RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 					},
-				}, nil
+				}
 			case reflect.Array:
 				typeLen := int32(fieldType.Len())
-				// handle special case for [N]byte
-				return &parquetschema.ColumnDefinition{
+				// Handle special case for [N]byte.
+				column = &parquetschema.ColumnDefinition{
 					SchemaElement: &parquet.SchemaElement{
 						Type:           parquet.TypePtr(parquet.Type_FIXED_LEN_BYTE_ARRAY),
 						Name:           fieldName,
 						RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 						TypeLength:     &typeLen,
 					},
-				}, nil
+				}
+			}
+		} else {
+			var elementColumn *parquetschema.ColumnDefinition
+			elementColumn, err = generateField(field, fieldType.Elem(), "element")
+			if err != nil {
+				return
+			}
+
+			repType := elementColumn.SchemaElement.RepetitionType
+			elementColumn.SchemaElement.RepetitionType = parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED)
+			column = &parquetschema.ColumnDefinition{
+				SchemaElement: &parquet.SchemaElement{
+					Name:           fieldName,
+					RepetitionType: repType,
+					ConvertedType:  parquet.ConvertedTypePtr(parquet.ConvertedType_LIST),
+					LogicalType: &parquet.LogicalType{
+						LIST: &parquet.ListType{},
+					},
+				},
+				Children: []*parquetschema.ColumnDefinition{
+					{
+						SchemaElement: &parquet.SchemaElement{
+							Name:           "list",
+							RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REPEATED),
+						},
+						Children: []*parquetschema.ColumnDefinition{
+							elementColumn,
+						},
+					},
+				},
 			}
 		}
-		elementType, err := generateField(fieldType.Elem(), "element")
-		if err != nil {
-			return nil, err
-		}
-		repType := elementType.SchemaElement.RepetitionType
-		elementType.SchemaElement.RepetitionType = parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED)
-		return &parquetschema.ColumnDefinition{
-			SchemaElement: &parquet.SchemaElement{
-				Name:           fieldName,
-				RepetitionType: repType,
-				ConvertedType:  parquet.ConvertedTypePtr(parquet.ConvertedType_LIST),
-				LogicalType: &parquet.LogicalType{
-					LIST: &parquet.ListType{},
-				},
-			},
-			Children: []*parquetschema.ColumnDefinition{
-				{
-					SchemaElement: &parquet.SchemaElement{
-						Name:           "list",
-						RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REPEATED),
-					},
-					Children: []*parquetschema.ColumnDefinition{
-						elementType,
-					},
-				},
-			},
-		}, nil
 	case reflect.String:
-		return &parquetschema.ColumnDefinition{
+		column = &parquetschema.ColumnDefinition{
 			SchemaElement: &parquet.SchemaElement{
 				Type:           parquet.TypePtr(parquet.Type_BYTE_ARRAY),
 				Name:           fieldName,
@@ -347,11 +363,11 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 					STRING: &parquet.StringType{},
 				},
 			},
-		}, nil
+		}
 	case reflect.Struct:
 		switch {
 		case fieldType.ConvertibleTo(reflect.TypeOf(time.Time{})):
-			return &parquetschema.ColumnDefinition{
+			column = &parquetschema.ColumnDefinition{
 				SchemaElement: &parquet.SchemaElement{
 					Type:           parquet.TypePtr(parquet.Type_INT64),
 					Name:           fieldName,
@@ -365,34 +381,42 @@ func generateField(fieldType reflect.Type, fieldName string) (*parquetschema.Col
 						},
 					},
 				},
-			}, nil
-		default:
-			children, err := generateSchema(fieldType)
-			if err != nil {
-				return nil, err
 			}
-			return &parquetschema.ColumnDefinition{
+		case fieldType.ConvertibleTo(reflect.TypeOf(goparquet.Time{})):
+			column = &parquetschema.ColumnDefinition{
+				SchemaElement: &parquet.SchemaElement{
+					Type:           parquet.TypePtr(parquet.Type_INT64),
+					Name:           fieldName,
+					RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
+					LogicalType: &parquet.LogicalType{
+						TIME: &parquet.TimeType{
+							IsAdjustedToUTC: true,
+							Unit: &parquet.TimeUnit{
+								NANOS: parquet.NewNanoSeconds(),
+							},
+						},
+					},
+				},
+			}
+		default:
+			var children []*parquetschema.ColumnDefinition
+			children, err = generateSchema(fieldType)
+			if err != nil {
+				return
+			}
+			column = &parquetschema.ColumnDefinition{
 				SchemaElement: &parquet.SchemaElement{
 					Name:           fieldName,
 					RepetitionType: parquet.FieldRepetitionTypePtr(parquet.FieldRepetitionType_REQUIRED),
 				},
 				Children: children,
-			}, nil
+			}
 		}
 	case reflect.UnsafePointer:
-		return nil, errors.New("unsafe.Pointer is unsupported")
+		err = errors.New("unsafe.Pointer is unsupported")
 	default:
-		return nil, fmt.Errorf("unknown kind %s is unsupported", fieldType.Kind())
-	}
-}
-
-func fieldNameToLower(field reflect.StructField) string {
-	parquetStructTag, ok := field.Tag.Lookup("parquet")
-	if !ok {
-		return strings.ToLower(field.Name)
+		err = errors.Errorf("unknown kind %s is unsupported", fieldType.Kind())
 	}
 
-	parquetStructTagFields := strings.Split(parquetStructTag, ",")
-
-	return strings.TrimSpace(parquetStructTagFields[0])
+	return
 }
